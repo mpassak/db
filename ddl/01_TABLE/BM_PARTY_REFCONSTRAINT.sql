@@ -1,0 +1,8 @@
+--------------------------------------------------------
+--  Ref Constraints for Table BM_PARTY
+--------------------------------------------------------
+
+  ALTER TABLE "METSM_OWNER"."BM_PARTY" ADD CONSTRAINT "FK_PARTY_GENDER" FOREIGN KEY ("ID_GENDER")
+	  REFERENCES "METSM_OWNER"."BM_GENDER" ("ID_GENDER") ENABLE;
+  ALTER TABLE "METSM_OWNER"."BM_PARTY" ADD CONSTRAINT "FK_PARTY_PARTY_TYPE" FOREIGN KEY ("ID_PARTY_TYPE")
+	  REFERENCES "METSM_OWNER"."BM_PARTY_TYPE" ("ID_TYPE") ENABLE;

@@ -1,0 +1,22 @@
+--------------------------------------------------------
+--  DDL for Procedure DELETE_B_FILE_DATA
+--------------------------------------------------------
+set define off;
+
+  CREATE OR REPLACE PROCEDURE "METSM_OWNER"."DELETE_B_FILE_DATA" 
+(
+  P_ID_BATCH IN NUMBER  
+) AS 
+fileId int;
+BEGIN
+  SELECT ID_FILE INTO fileId FROM B_BATCH WHERE ID_BATCH = P_ID_BATCH;
+  DELETE FROM ST_RAW_PARSED_DATA
+    WHERE ID_RECORD IN (
+        SELECT ID_RECORD FROM B_RECORD WHERE ID_BATCH = P_ID_BATCH
+    );
+  DELETE FROM B_RECORD WHERE ID_BATCH = P_ID_BATCH;
+  DELETE FROM B_BATCH WHERE ID_BATCH = P_ID_BATCH;
+  DELETE FROM B_FILE WHERE ID_FILE = fileId;
+END DELETE_B_FILE_DATA;
+
+/

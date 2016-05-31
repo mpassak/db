@@ -1,0 +1,14 @@
+--------------------------------------------------------
+--  DDL for Trigger TRG_SEQ_MD_EXTRACT
+--------------------------------------------------------
+
+  CREATE OR REPLACE TRIGGER "METSM_OWNER"."TRG_SEQ_MD_EXTRACT" 
+BEFORE INSERT ON METSM_OWNER.MD_EXTRACT
+FOR EACH ROW
+BEGIN
+	IF :new.ID_EXTRACT IS NULL THEN
+		SELECT SEQ_MD_EXTRACT.nextval INTO :new.ID_EXTRACT FROM DUAL;
+	END IF;
+END;
+/
+ALTER TRIGGER "METSM_OWNER"."TRG_SEQ_MD_EXTRACT" ENABLE;
