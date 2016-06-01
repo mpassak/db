@@ -1,4 +1,7 @@
 --------------------------------------------------------
+--  File created - Streda-júna-01-2016   
+--------------------------------------------------------
+--------------------------------------------------------
 --  DDL for Procedure DROP_ALL_STAGE_VIEWS
 --------------------------------------------------------
 set define off;
@@ -10,7 +13,7 @@ BEGIN
   (SELECT view_name
   FROM dba_views
   WHERE owner = 'METSM_OWNER'
-  AND view_name LIKE 'V_ST%'
+  AND (view_name LIKE 'V_ST%' or view_name LIKE 'V_RW%')
   )
   LOOP
     EXECUTE immediate 'drop view ' || i.view_name;

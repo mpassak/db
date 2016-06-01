@@ -1,4 +1,7 @@
 --------------------------------------------------------
+--  File created - Streda-júna-01-2016   
+--------------------------------------------------------
+--------------------------------------------------------
 --  DDL for Procedure CREATE_ALL_STAGE_VIEWS
 --------------------------------------------------------
 set define off;
@@ -14,6 +17,15 @@ CURSOR extracts IS
                       WITHIN GROUP (ORDER BY md_sk_definition.cd_nk) nk_list
         from md_sk_definition md_sk_definition
         group by md_sk_definition.id_extract
+    ),
+    st_definition as (
+        select  md_st_definition.id_extract, 
+                listagg(PROPERTY_DEFINITION ||' '|| CD_PROPERTY, ', ')
+                      WITHIN GROUP (ORDER BY position) st_definition_list,
+                listagg(CD_PROPERTY, ', ')
+                      WITHIN GROUP (ORDER BY position) st_definition_properties
+        from md_st_definition md_st_definition
+        group by md_st_definition.id_extract
     )
     select  md_extract.id_extract,
             md_extract.extract_name,
@@ -22,7 +34,9 @@ CURSOR extracts IS
             md_extract.property_name_list2,
             md_extract.property_name_list3,
             sk_definition.sk_definition_list,
-            sk_definition.nk_list          
+            sk_definition.nk_list,
+            st_definition.st_definition_list,
+            st_definition.st_definition_properties
     from (
         SELECT    md_extract.id_extract,
                   md_extract.extract_name,
@@ -43,14 +57,17 @@ CURSOR extracts IS
     ) md_extract
     join sk_definition sk_definition
       on (md_extract.id_extract = sk_definition.id_extract)
+    join st_definition st_definition
+      on (md_extract.id_extract = st_definition.id_extract)
 ;
 
 sql_stmt  VARCHAR2(4000) := '';
+sql_stmt2  VARCHAR2(4000) := '';
 BEGIN
   FOR extract IN extracts
   LOOP
-    sql_stmt := 'CREATE OR REPLACE FORCE VIEW METSM_OWNER.V_ST_'|| extract.cd_extract ||'$VIEW_NAME_SUFIX (extract_name, id_record, id_batch, '|| extract.property_name_list3 ||', '|| extract.nk_list ||') AS
-      select extract_name, id_record, id_batch, '|| extract.property_name_list3 ||', '|| extract.sk_definition_list ||'
+    sql_stmt := 'CREATE OR REPLACE FORCE VIEW METSM_OWNER.V_RW_'|| extract.cd_extract ||'$VIEW_NAME_SUFIX (extract_name, id_record, id_batch, '|| extract.property_name_list3 ||') AS
+      select extract_name, id_record, id_batch, '|| extract.property_name_list3 ||'
       from(
           with sub as(
               select  md_extract.extract_name,
@@ -78,9 +95,20 @@ BEGIN
                 IN ('|| extract.property_name_list ||' )
                 )
             )';
+            
+      sql_stmt2 := 'CREATE OR REPLACE FORCE VIEW METSM_OWNER.V_ST_'|| extract.cd_extract ||'$VIEW_NAME_SUFIX (extract_name, id_record, id_batch, '|| extract.st_definition_properties ||', '|| extract.nk_list ||') AS
+      select extract_name, id_record, id_batch, '|| extract.st_definition_list ||', '|| extract.sk_definition_list ||'
+      from METSM_OWNER.V_RW_'|| extract.cd_extract;
+      
       dbms_output.put_line(sql_stmt);
+      
+      sql_stmt2 := replace(sql_stmt2,'$VIEW_NAME_SUFIX','');
+      dbms_output.put_line(sql_stmt2);
+      
+      
       EXECUTE IMMEDIATE(replace(replace(sql_stmt,'$VIEW_NAME_SUFIX',''),'$FL_LOADED','0'));
-      EXECUTE IMMEDIATE(replace(replace(sql_stmt,'$VIEW_NAME_SUFIX','_LOADED'),'$FL_LOADED','1'));
+      EXECUTE IMMEDIATE(sql_stmt2);
+      --EXECUTE IMMEDIATE(replace(replace(sql_stmt,'$VIEW_NAME_SUFIX','_LOADED'),'$FL_LOADED','1'));
   END LOOP;
 END CREATE_ALL_STAGE_VIEWS;
 
