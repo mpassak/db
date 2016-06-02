@@ -1,5 +1,5 @@
 --------------------------------------------------------
---  File created - Utorok-mája-31-2016   
+--  File created - Štvrtok-júna-02-2016   
 --------------------------------------------------------
 --------------------------------------------------------
 --  DDL for Package Body PKG_ORG_TRAVEL
@@ -10,14 +10,26 @@
 cnt number;
 id_process_log integer;
 id_process_log_load integer;
-
+    
 PROCEDURE load_batch(p_id_batch integer, p_id_process integer) IS
 BEGIN
 
     dbms_output.put_line('Loadujem batch '|| p_id_batch);
     pkg_loader.insert_process_log(p_id_process, p_id_batch, 'LOAD_ORG_TRAVEL', 'LOAD', 'START', null, id_process_log);
     
-    pkg_loader.data_control(p_id_batch, p_id_process);
+   -- pkg_loader.data_control(p_id_batch, p_id_process);
+    
+   /* EXECUTE IMMEDIATE 'CREATE GLOBAL TEMPORARY TABLE st_org_travel
+      ON COMMIT DELETE ROWS
+    as select *
+    from V_ST_ORG_TRAVEL 
+    where id_batch = :id_batch' USING IN p_id_batch;*/
+    
+    
+    insert into st_org_travel
+    select *
+    from V_ST_ORG_TRAVEL
+    where id_batch = p_id_batch;
     
     analyze(p_id_batch, p_id_process);
     
@@ -65,7 +77,7 @@ BEGIN
     analyze_phone_number(p_id_batch);
     
     pkg_loader.update_process_log(id_process_log, 'FINISHED', sysdate, null);
-    commit;
+
 END;
 
 PROCEDURE prepare_B_LOAD_RECORD_ACTION(p_id_batch integer) IS
@@ -95,14 +107,10 @@ BEGIN
     from (
         select 
             st_org_travel.nk_policy cd_natural_key, 
-            case st_org_travel.olgacttype 
-                when '03' then 'CREATE'
-                when '04' then 'UPDATE'
-                when '10' then 'DELETE'
-            end cd_action,
+            st_org_travel.action_type cd_action,
             st_org_travel.id_record,
             st_org_travel.id_batch
-        from v_st_org_travel st_org_travel
+        from st_org_travel st_org_travel
         where st_org_travel.id_batch = p_id_batch
     )st_org_travel
     left join sk_table sk_table
@@ -130,14 +138,10 @@ BEGIN
     from (
         select
             st_org_travel.nk_party cd_natural_key, 
-            case st_org_travel.olgacttype 
-                when '03' then 'CREATE'
-                when '04' then 'UPDATE'
-                when '10' then 'DELETE'
-            end cd_action,
+            st_org_travel.action_type cd_action,
             st_org_travel.id_record,
             st_org_travel.id_batch
-        from v_st_org_travel st_org_travel
+        from st_org_travel st_org_travel
         where st_org_travel.id_batch = p_id_batch
     )st_org_travel
     left join sk_table sk_table
@@ -163,14 +167,10 @@ BEGIN
     from (
         select 
             st_org_travel.nk_address cd_natural_key, 
-            case st_org_travel.olgacttype 
-                when '03' then 'CREATE'
-                when '04' then 'UPDATE'
-                when '10' then 'DELETE'
-            end cd_action,
+            st_org_travel.action_type cd_action,
             st_org_travel.id_record,
             st_org_travel.id_batch
-        from v_st_org_travel st_org_travel
+        from st_org_travel st_org_travel
         where st_org_travel.id_batch = p_id_batch
     )st_org_travel
     left join sk_table sk_table
@@ -196,14 +196,10 @@ BEGIN
     from (
         select 
             st_org_travel.nk_phone_number cd_natural_key, 
-            case st_org_travel.olgacttype 
-                when '03' then 'CREATE'
-                when '04' then 'UPDATE'
-                when '10' then 'DELETE'
-            end cd_action,
+            st_org_travel.action_type cd_action,
             st_org_travel.id_record,
             st_org_travel.id_batch
-        from v_st_org_travel st_org_travel
+        from st_org_travel st_org_travel
         where st_org_travel.id_batch = p_id_batch
     )st_org_travel
     left join sk_table sk_table
@@ -238,24 +234,24 @@ begin
         extract_code.id_product_variant id_product_variant,
         sk_address.id_surrogate_key id_address,
         sk_phone_number.id_surrogate_key id_phone_number,
-        v_st_org_travel.olgconosk policy_number,
-        to_date(v_st_org_travel.OLGENROLDT,'YYYYMMDDHH24MISS') dt_issued,
-        to_date(v_st_org_travel.OLGEFFDT,'YYYYMMDDHH24MISS') dt_start,
-        to_date(v_st_org_travel.OLGCLOSEDT,'YYYYMMDD') dt_close,
+        st_org_travel.policy_number policy_number,
+        st_org_travel.dt_issued dt_issued,
+        st_org_travel.dt_start dt_start,
+        st_org_travel.dt_close dt_close,
         sysdate dt_created
     from b_load_record_action b_load_record_action
-    join v_st_org_travel v_st_org_travel
-      on (b_load_record_action.id_record = v_st_org_travel.id_record)
+    join st_org_travel st_org_travel
+      on (b_load_record_action.id_record = st_org_travel.id_record)
     join sk_table sk_policy
-      on sk_policy.id_table = 11 and v_st_org_travel.nk_policy = sk_policy.cd_natural_key
+      on sk_policy.id_table = 11 and st_org_travel.nk_policy = sk_policy.cd_natural_key
     join sk_table sk_party
-      on sk_party.id_table = 8 and v_st_org_travel.nk_party = sk_party.cd_natural_key
+      on sk_party.id_table = 8 and st_org_travel.nk_party = sk_party.cd_natural_key
     join sk_table sk_address
-      on sk_address.id_table = 1 and v_st_org_travel.nk_address = sk_address.cd_natural_key
+      on sk_address.id_table = 1 and st_org_travel.nk_address = sk_address.cd_natural_key
     join sk_table sk_phone_number
-      on sk_phone_number.id_table = 10 and v_st_org_travel.nk_phone_number = sk_phone_number.cd_natural_key
+      on sk_phone_number.id_table = 10 and st_org_travel.nk_phone_number = sk_phone_number.cd_natural_key
     join extract_code extract_code
-      on extract_code.cd_extract_code = v_st_org_travel.OLGPRODTYP
+      on extract_code.cd_extract_code = st_org_travel.cd_extract_code
     where b_load_record_action.id_batch = p_id_batch 
       and b_load_record_action.cd_action = 'CREATE'
       and b_load_record_action.fl_valid = 1
@@ -275,12 +271,12 @@ BEGIN
         select 
             sk_policy.id_surrogate_key id_policy,
             3 id_status,
-            to_date(v_st_org_travel.OLGCLOSEDT,'YYYYMMDD') dt_close
+            st_org_travel.dt_close dt_close
         from b_load_record_action b_load_record_action
-        join v_st_org_travel v_st_org_travel
-          on (b_load_record_action.id_record = v_st_org_travel.id_record)
+        join st_org_travel st_org_travel
+          on (b_load_record_action.id_record = st_org_travel.id_record)
         join sk_table sk_policy
-          on sk_policy.id_table = 11 and v_st_org_travel.nk_policy = sk_policy.cd_natural_key
+          on sk_policy.id_table = 11 and st_org_travel.nk_policy = sk_policy.cd_natural_key
         where b_load_record_action.id_batch = p_id_batch 
           and b_load_record_action.cd_action = 'DELETE'
           and b_load_record_action.fl_valid = 1
@@ -336,41 +332,26 @@ BEGIN
   insert into bm_party (id_party, id_party_type, id_gender, first_name, last_name, title, dt_birth_date, birth_number, ICO, fl_foreigner, email, company_name, dt_created)
     select distinct
         sk_party.id_surrogate_key id_party,
-        case when v_st_org_travel.olgvip = 1 then 1
-             when v_st_org_travel.olgvip = 2 then 2
+        case when st_org_travel.party_type = 1 then 1
+             when st_org_travel.party_type = 2 then 2
              else -1
         end id_party_type,
         -1 id_gender,
-        case when v_st_org_travel.olgvip = 1 then v_st_org_travel.olgname
-             else null        
-        end first_name,
-        case when v_st_org_travel.olgvip = 1 then v_st_org_travel.olgsurname
-             else null        
-        end last_name,
-        v_st_org_travel.olgtitle title,
-        case when v_st_org_travel.olgvip = 1 then to_date(v_st_org_travel.OLGBIRTHDT, 'YYYYMMDD')
-             else null        
-        end dt_birth_date,
-        case when v_st_org_travel.olgvip = 1 then REPLACE(v_st_org_travel.olgpersid,'/','')
-             else null        
-        end birth_number,
-        case when v_st_org_travel.olgvip = 2 then v_st_org_travel.OLGPERSID
-             else null        
-        end ICO,      
-        case when v_st_org_travel.OLGFOREIGN = 'N' then 0
-             when v_st_org_travel.OLGFOREIGN = 'Y' then 1
-             else null        
-        end fl_foreigner,
+        st_org_travel.first_name first_name,
+        st_org_travel.last_name last_name,
+        st_org_travel.title title,
+        st_org_travel.dt_birth_date dt_birth_date,
+        st_org_travel.birth_number birth_number,
+        st_org_travel.ICO ICO,      
+        st_org_travel.fl_foreigner fl_foreigner,
         null email,
-        case when v_st_org_travel.olgvip = 2 then v_st_org_travel.olgname
-             else null        
-        end company_name,
+        st_org_travel.company_name company_name,
         sysdate dt_created
     from b_load_record_action b_load_record_action
-    join v_st_org_travel v_st_org_travel
-      on (b_load_record_action.id_record = v_st_org_travel.id_record)
+    join st_org_travel st_org_travel
+      on (b_load_record_action.id_record = st_org_travel.id_record)
     join sk_table sk_party
-      on sk_party.id_table = 8 and v_st_org_travel.nk_party = sk_party.cd_natural_key
+      on sk_party.id_table = 8 and st_org_travel.nk_party = sk_party.cd_natural_key
     where b_load_record_action.id_batch = p_id_batch 
       and b_load_record_action.cd_action = 'CREATE'
       and b_load_record_action.fl_valid = 1
@@ -396,17 +377,17 @@ BEGIN
         sk_address.id_surrogate_key id_address,
         3 id_address_type,
         nvl(bm_country.id_country, -1) id_country,
-        v_st_org_travel.OLGSTREET street,
-        v_st_org_travel.OLGCITI city,
-        v_st_org_travel.OLGZIP zip,
+        st_org_travel.street street,
+        st_org_travel.city city,
+        st_org_travel.zip zip,
         sysdate dt_created
     from b_load_record_action b_load_record_action
-    join v_st_org_travel v_st_org_travel
-      on (b_load_record_action.id_record = v_st_org_travel.id_record)
+    join st_org_travel st_org_travel
+      on (b_load_record_action.id_record = st_org_travel.id_record)
     join sk_table sk_address
-      on sk_address.id_table = 1 and v_st_org_travel.nk_address = sk_address.cd_natural_key
+      on sk_address.id_table = 1 and st_org_travel.nk_address = sk_address.cd_natural_key
     left join bm_country bm_country
-      on bm_country.cd_country = substr(v_st_org_travel.olgcn, 1, 3)
+      on bm_country.cd_country = st_org_travel.cd_country
     where b_load_record_action.id_batch = p_id_batch 
       and b_load_record_action.cd_action = 'CREATE'
       and b_load_record_action.fl_valid = 1
@@ -432,19 +413,19 @@ BEGIN
     select distinct
         sk_phone_number.id_surrogate_key id_phone_number,
         nvl(bm_country.id_country, -1) id_country,
-        v_st_org_travel.olgphone phone_number,
+        st_org_travel.phone_number phone_number,
         sysdate dt_created
     from b_load_record_action b_load_record_action
-    join v_st_org_travel v_st_org_travel
-      on (b_load_record_action.id_record = v_st_org_travel.id_record) 
+    join st_org_travel st_org_travel
+      on (b_load_record_action.id_record = st_org_travel.id_record) 
     join sk_table sk_phone_number
-      on sk_phone_number.id_table = 10 and v_st_org_travel.nk_phone_number = sk_phone_number.cd_natural_key
+      on sk_phone_number.id_table = 10 and st_org_travel.nk_phone_number = sk_phone_number.cd_natural_key
     left join bm_country bm_country
-      on bm_country.phone_area_code = substr(v_st_org_travel.olgphone, 1, 4)
+      on bm_country.phone_area_code = substr(st_org_travel.phone_number, 1, 4)
     where b_load_record_action.id_batch = p_id_batch 
       and b_load_record_action.cd_action = 'CREATE'
       and b_load_record_action.fl_valid = 1
-      and b_load_record_action.id_table = 1;
+      and b_load_record_action.id_table = 10;
       
     cnt := SQL%ROWCOUNT;
     dbms_output.put_line(cnt ||' new phone numbers created.');
@@ -463,18 +444,15 @@ BEGIN
     
     merge into b_record b_record
     using (
-        select v_st_org_travel.id_record, 
-          case olgacttype
-               when '04' then 'update'
-               when '10' then 'delete'
-          end action,
-          v_st_org_travel.olgconosk policy_number
-        from v_st_org_travel v_st_org_travel
+        select st_org_travel.id_record, 
+          lower(st_org_travel.action_type) action,
+          st_org_travel.policy_number policy_number
+        from st_org_travel st_org_travel
         left join sk_table sk_policy 
-          on sk_policy.cd_natural_key = v_st_org_travel.nk_policy
-        where olgacttype in ('04', '10')
+          on sk_policy.cd_natural_key = st_org_travel.nk_policy
+        where action_type in ('UPDATE', 'DELETE')
          and sk_policy.id_surrogate_key is null
-         and v_st_org_travel.id_batch = p_id_batch
+         and st_org_travel.id_batch = p_id_batch
     ) errors
     ON (b_record.id_record = errors.id_record)
     WHEN MATCHED THEN
@@ -488,12 +466,12 @@ BEGIN
     dbms_output.put_line('Updating B Record...');
     merge into b_record b_record
     using (
-        select sk_policy.id_surrogate_key id_policy, v_st_org_travel.id_record
+        select sk_policy.id_surrogate_key id_policy, st_org_travel.id_record
             from sk_table sk_policy
-            join v_st_org_travel v_st_org_travel
-            on sk_policy.cd_natural_key = v_st_org_travel.nk_policy
+            join st_org_travel st_org_travel
+            on sk_policy.cd_natural_key = st_org_travel.nk_policy
             where id_table = 11 
-              and v_st_org_travel.id_batch = p_id_batch
+              and st_org_travel.id_batch = p_id_batch
     ) loaded_policy
     ON (b_record.id_record = loaded_policy.id_record)
     WHEN MATCHED THEN

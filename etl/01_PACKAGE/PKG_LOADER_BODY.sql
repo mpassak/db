@@ -1,5 +1,5 @@
 --------------------------------------------------------
---  File created - Utorok-mája-31-2016   
+--  File created - Štvrtok-júna-02-2016   
 --------------------------------------------------------
 --------------------------------------------------------
 --  DDL for Package Body PKG_LOADER
@@ -59,17 +59,19 @@ PROCEDURE create_SK(p_id_batch integer, p_id_process integer) IS
     sql_stmt  VARCHAR2(4000) := '';
     id_process_log integer;
 BEGIN
+  dbms_output.put_line('start SK creation');
   pkg_loader.insert_process_log(p_id_process, p_id_batch, 'LOAD_ORG_TRAVEL', 'SK_GENERATION', 'START', null, id_process_log);
   
   FOR sk_definition IN sk_definitions
   LOOP
+      dbms_output.put_line('SK for '|| sk_definition.table_name);
       sql_stmt := 'insert into sk_table (id_table, cd_natural_key, id_surrogate_key)
                   select '|| sk_definition.id_table ||', cd_natural_key, '|| sk_definition.sequence_name ||'.nextVal
                   from(
-                      select distinct v_st_org_travel.'|| sk_definition.cd_nk ||' cd_natural_key
+                      select distinct st_org_travel.'|| sk_definition.cd_nk ||' cd_natural_key
                       from b_load_record_action b_load_record_action
-                      join v_st_org_travel v_st_org_travel
-                        on (b_load_record_action.id_record = v_st_org_travel.id_record)
+                      join st_org_travel st_org_travel
+                        on (b_load_record_action.id_record = st_org_travel.id_record)
                       where b_load_record_action.id_batch = '|| p_id_batch ||'
                         and b_load_record_action.cd_action = ''CREATE''
                         and b_load_record_action.fl_valid = 1
@@ -81,6 +83,7 @@ BEGIN
   END LOOP;
   
   pkg_loader.update_process_log(id_process_log, 'FINISHED', sysdate, null);
+  dbms_output.put_line('finished SK creation');
 END;
 
 

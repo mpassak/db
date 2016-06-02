@@ -1,5 +1,5 @@
 --------------------------------------------------------
---  File created - Streda-júna-01-2016   
+--  File created - Štvrtok-júna-02-2016   
 --------------------------------------------------------
 --------------------------------------------------------
 --  DDL for Procedure CREATE_ALL_STAGE_VIEWS
@@ -63,10 +63,11 @@ CURSOR extracts IS
 
 sql_stmt  VARCHAR2(4000) := '';
 sql_stmt2  VARCHAR2(4000) := '';
+table_name  VARCHAR2(30) := '';
 BEGIN
   FOR extract IN extracts
   LOOP
-    sql_stmt := 'CREATE OR REPLACE FORCE VIEW METSM_OWNER.V_RW_'|| extract.cd_extract ||'$VIEW_NAME_SUFIX (extract_name, id_record, id_batch, '|| extract.property_name_list3 ||') AS
+    sql_stmt := 'CREATE OR REPLACE FORCE VIEW METSM_OWNER.V_RW_'|| extract.cd_extract ||' (extract_name, id_record, id_batch, '|| extract.property_name_list3 ||') AS
       select extract_name, id_record, id_batch, '|| extract.property_name_list3 ||'
       from(
           with sub as(
@@ -77,8 +78,7 @@ BEGIN
                       st_raw_parsed_data.value
               from st_raw_parsed_data st_raw_parsed_data
               join b_record b_record
-                on (/*b_record.fl_loaded = $FL_LOADED
-                    and */st_raw_parsed_data.id_record = b_record.id_record)
+                on (st_raw_parsed_data.id_record = b_record.id_record)
               join md_extract_property md_extract_property
                 on (st_raw_parsed_data.id_extract_property = md_extract_property.id_extract_property)
               join md_extract md_extract 
@@ -96,19 +96,30 @@ BEGIN
                 )
             )';
             
-      sql_stmt2 := 'CREATE OR REPLACE FORCE VIEW METSM_OWNER.V_ST_'|| extract.cd_extract ||'$VIEW_NAME_SUFIX (extract_name, id_record, id_batch, '|| extract.st_definition_properties ||', '|| extract.nk_list ||') AS
+      sql_stmt2 := 'CREATE OR REPLACE FORCE VIEW METSM_OWNER.V_ST_'|| extract.cd_extract ||' (extract_name, id_record, id_batch, '|| extract.st_definition_properties ||', '|| extract.nk_list ||') AS
       select extract_name, id_record, id_batch, '|| extract.st_definition_list ||', '|| extract.sk_definition_list ||'
       from METSM_OWNER.V_RW_'|| extract.cd_extract;
       
       dbms_output.put_line(sql_stmt);
       
-      sql_stmt2 := replace(sql_stmt2,'$VIEW_NAME_SUFIX','');
+
       dbms_output.put_line(sql_stmt2);
       
       
-      EXECUTE IMMEDIATE(replace(replace(sql_stmt,'$VIEW_NAME_SUFIX',''),'$FL_LOADED','0'));
+      EXECUTE IMMEDIATE(sql_stmt);
       EXECUTE IMMEDIATE(sql_stmt2);
-      --EXECUTE IMMEDIATE(replace(replace(sql_stmt,'$VIEW_NAME_SUFIX','_LOADED'),'$FL_LOADED','1'));
+
+      
+      select table_name
+      into table_name
+      from user_TABLES
+      where table_name = 'ST_'|| extract.cd_extract;
+      
+      if(table_name is not null)
+        then     EXECUTE IMMEDIATE 'DROP TABLE ST_'|| extract.cd_extract;
+      end if;
+      EXECUTE IMMEDIATE 'CREATE GLOBAL TEMPORARY TABLE ST_'|| extract.cd_extract ||' ON COMMIT delete ROWS as select * from V_ST_'|| extract.cd_extract ||' where 1 = 0';
+
   END LOOP;
 END CREATE_ALL_STAGE_VIEWS;
 
